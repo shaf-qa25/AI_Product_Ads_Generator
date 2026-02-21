@@ -48,7 +48,7 @@ function Header() {
                             <Link href={"/dashboard"}>
                                 <Button
                                     variant="outline"
-                                    className="hidden sm:flex gap-2 items-center rounded-xl border-white/10 bg-white/5 hover:border-primary text-[10px] font-black uppercase tracking-widest h-9 transition-all duration-300 text-white"
+                                    className="sm:flex gap-2 items-center rounded-xl border-white/10 bg-white/5 hover:border-primary text-[10px] font-black uppercase tracking-widest h-9 transition-all duration-300 text-white"
                                 >
                                     <LayoutDashboard size={14} />
                                     Dashboard

@@ -95,7 +95,7 @@ function GenerateContent() {
 
     if (slides.length === 0) return (
         <div className="h-screen bg-black flex items-center justify-center text-zinc-500">
-            No content generated. Try again bhai!
+            No content generated. Try again!
         </div>
     );
 
