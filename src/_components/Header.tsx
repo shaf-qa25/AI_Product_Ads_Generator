@@ -1,79 +1,76 @@
 "use client"
-import { Button } from '@/components/ui/button'
-import { SignInButton, UserButton, useUser } from '@clerk/nextjs'
-import Link from 'next/link'
-import React from 'react'
-import { LayoutDashboard, Zap, Compass, CreditCard, Home } from 'lucide-react'
 
-function Header() {
+import { useUser, UserButton } from "@clerk/nextjs"
+import { useRouter } from "next/navigation"
+import { motion } from "framer-motion"
+import { Sparkles } from "lucide-react"
+
+export default function Header() {
     const { user } = useUser()
+    const router = useRouter()
 
     return (
-        <div className='fixed top-0 left-0 right-0 z-[100] flex justify-center p-4'>
-            {/* Main Nav Container */}
-            <div className='w-full max-w-7xl flex items-center justify-between px-6 py-3 rounded-2xl border border-white/[0.08] bg-black/40 backdrop-blur-xl shadow-2xl relative overflow-hidden'>
-
-                {/* Subtle Top Glow Line */}
-                <div className='absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-primary/50 to-transparent'></div>
-
-                {/* Logo Section */}
-                <Link href={"/"} className='flex items-center gap-2 group transition-all relative z-10'>
-                    <div className='bg-primary p-1.5 rounded-lg group-hover:shadow-[0_0_15px_rgba(82,39,255,0.6)] transition-all duration-300'>
-                        <Zap size={18} className='text-white fill-white' />
-                    </div>
-                    <h2 className='font-black text-xl tracking-tighter uppercase italic text-white group-hover:text-blue-500 transition-colors'>
-                        Vid<span className='text-blue-500'>Course</span>
-                    </h2>
-                </Link>
-
-                {/* Center Navigation - Sleek & Spaced */}
-                <nav className='hidden md:flex items-center gap-8 font-black text-[10px] tracking-[0.25em] uppercase text-zinc-300'>
-                    <Link href={"/"} className='flex items-center gap-2 hover:text-white transition-colors group'>
-                        <Home size={14} className='group-hover:text-blue-300' />
-                        Home
-                    </Link>
-                    <Link href={"/explore"} className='flex items-center gap-2 hover:text-white transition-colors group'>
-                        <Compass size={14} className='group-hover:text-blue-300' />
-                        Explore
-                    </Link>
-                    <Link href={"/pricing"} className='hover:text-white transition-colors'>
-                        Pricing
-                    </Link>
-                </nav>
-
-                {/* Auth & Dashboard */}
-                <div className='flex items-center gap-2 md:gap-4 relative z-10'>
-                    {user ? (
-                        <div className='flex items-center gap-2 md:gap-3'>
-                            <Link href={"/dashboard"}>
-                                <Button
-                                    variant="outline"
-                                    className="flex gap-2 items-center rounded-xl border-white/10 bg-white/5 hover:border-primary text-[9px] md:text-[10px] font-black uppercase tracking-widest h-9 px-3 md:px-4 transition-all duration-300 text-white"
-                                >
-                                    <LayoutDashboard size={14} />
-                                    <span className="hidden xs:block">Dashboard</span>
-                                    <span className="xs:hidden">Dash</span>
-                                </Button>
-                            </Link>
-
-                            <div className='h-9 w-9 rounded-full border border-primary/30 p-0.5 hover:border-primary transition-all shadow-[0_0_10px_rgba(82,39,255,0.2)]'>
-                                <UserButton afterSignOutUrl="/" />
-                            </div>
-                        </div>
-                    ) : (
-                        <SignInButton mode='modal'>
-                            <button className='relative inline-flex h-9 md:h-10 overflow-hidden rounded-xl p-[1px] focus:outline-none'>
-                                <span className='absolute inset-[-1000%] animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#E2E8F0_0%,#5227FF_50%,#E2E8F0_100%)]' />
-                                <span className='inline-flex h-full w-full cursor-pointer items-center justify-center rounded-xl bg-black px-4 md:px-6 py-1 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white backdrop-blur-3xl hover:bg-zinc-900 transition-all'>
-                                    Join
-                                </span>
-                            </button>
-                        </SignInButton>
-                    )}
+        <motion.header
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-12 py-4 backdrop-blur-xl bg-[#030303]/70 border-b border-white/5"
+        >
+            {/* Logo */}
+            <div
+                className="flex items-center gap-2.5 cursor-pointer"
+                onClick={() => router.push("/")}
+            >
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                    <Sparkles size={16} className="text-white" />
                 </div>
+                <span className="text-white font-black text-sm tracking-[0.15em] uppercase">
+                    StoryGen
+                </span>
             </div>
-        </div>
+
+            {/* Nav Links */}
+            <nav className="hidden md:flex items-center gap-8">
+                <a
+                    href="#features"
+                    className="text-zinc-400 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest"
+                >
+                    Features
+                </a>
+                <a
+                    href="#examples"
+                    className="text-zinc-400 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest"
+                >
+                    Examples
+                </a>
+            </nav>
+
+            {/* Auth Actions */}
+            <div className="flex items-center gap-3">
+                {user ? (
+                    <button
+                        onClick={() => router.push("/dashboard")}
+                        className="bg-white text-black px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-zinc-200 transition-all hover:scale-105"
+                    >
+                        Dashboard
+                    </button>
+                ) : (
+                    <>
+                        <button
+                            onClick={() => router.push("/sign-in")}
+                            className="text-zinc-400 hover:text-white px-4 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors"
+                        >
+                            Sign In
+                        </button>
+                        <button
+                            onClick={() => router.push("/sign-up")}
+                            className="bg-white text-black px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-zinc-200 transition-all hover:scale-105"
+                        >
+                            Get Started
+                        </button>
+                    </>
+                )}
+            </div>
+        </motion.header>
     )
 }
-
-export default Header

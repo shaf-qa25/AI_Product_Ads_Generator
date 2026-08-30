@@ -4,8 +4,6 @@ import axios from 'axios'
 import { useEffect, useState } from 'react';
 
 function Provider({ children }: { children: React.ReactNode }) {
-
-
     const [userDetail, setUserDetail] = useState(null)
 
     useEffect(() => {
@@ -13,16 +11,19 @@ function Provider({ children }: { children: React.ReactNode }) {
     }, [])
 
     const CreateNewUser = async () => {
-        const result = await axios.post('/api/user', {});
-        console.log(result.data);
-        setUserDetail(result?.data);
+        try {
+            const result = await axios.post('/api/user', {});
+            setUserDetail(result?.data);
+        } catch (error: any) {
+            // Auth or DB may not be configured yet — continue without blocking the UI
+            console.warn("Provider: /api/user failed —", error?.response?.data?.error || error.message);
+        }
     }
 
     return (
         <div>
             <UserDetailContext.Provider value={{ userDetail, setUserDetail }}>
                 {children}
-
             </UserDetailContext.Provider>
         </div>
     )

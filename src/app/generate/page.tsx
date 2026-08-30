@@ -1,12 +1,14 @@
 "use client"
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { useEffect, useState, Suspense, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Home } from 'lucide-react'
 
 function GenerateContent() {
     const searchParams = useSearchParams();
     const prompt = searchParams.get('prompt');
     const type = searchParams.get('type') || 'quick';
+    const regen = searchParams.get('regen') === 'true';
 
     const [slides, setSlides] = useState<any[]>([]);
     const [currentSlide, setCurrentSlide] = useState(0);
@@ -25,7 +27,7 @@ function GenerateContent() {
                 const response = await fetch('/api/user-courses', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt, type }),
+                    body: JSON.stringify({ prompt, type, regen }),
                 });
                 const data = await response.json();
 
@@ -66,13 +68,29 @@ function GenerateContent() {
         }
     }, [currentSlide, slides.length]);
 
+    const router = useRouter();
+
     const renderContent = (content: any) => {
         if (!content) return "";
         if (typeof content === 'string') return content;
         if (typeof content === 'object') {
-            return content.text || content.description || JSON.stringify(content);
+            return content.text || content.description || content.content || JSON.stringify(content);
         }
         return "No content available";
+    };
+
+    const getBulletPoints = (content: any): string[] => {
+        if (!content) return [];
+        if (typeof content === 'object' && Array.isArray(content.bulletPoints)) {
+            return content.bulletPoints;
+        }
+        if (typeof content === 'object' && Array.isArray(content.points)) {
+            return content.points;
+        }
+        if (typeof content === 'object' && Array.isArray(content.bullets)) {
+            return content.bullets;
+        }
+        return [];
     };
 
     if (loading) {
@@ -136,14 +154,14 @@ function GenerateContent() {
                         {slides[currentSlide]?.title}
                     </h2>
 
-                    <div className="text-lg md:text-3xl text-zinc-400 font-medium max-w-4xl leading-relaxed">
-                        <p>{renderContent(slides[currentSlide]?.content)}</p>
+                    <div className="text-lg md:text-2xl text-zinc-400 font-medium max-w-4xl leading-relaxed">
+                        <p className="mb-6">{renderContent(slides[currentSlide]?.content)}</p>
 
-                        {slides[currentSlide]?.content?.bulletPoints && (
-                            <ul className="mt-8 space-y-4 text-left inline-block">
-                                {slides[currentSlide].content.bulletPoints.map((point: string, idx: number) => (
-                                    <li key={idx} className="flex items-start gap-3 text-zinc-300 text-xl">
-                                        <span className="text-blue-500">•</span> {point}
+                        {getBulletPoints(slides[currentSlide]?.content).length > 0 && (
+                            <ul className="mt-6 space-y-3 text-left inline-block">
+                                {getBulletPoints(slides[currentSlide]?.content).map((point: string, idx: number) => (
+                                    <li key={idx} className="flex items-start gap-3 text-zinc-300 text-lg md:text-xl">
+                                        <span className="text-blue-500 mt-1">•</span> {point}
                                     </li>
                                 ))}
                             </ul>
@@ -151,6 +169,15 @@ function GenerateContent() {
                     </div>
                 </motion.div>
             </AnimatePresence>
+
+            {/* Top Left - Home Button */}
+            <button
+                onClick={() => router.push('/')}
+                className="fixed top-6 left-6 z-50 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-zinc-400 hover:text-white pointer-events-auto"
+            >
+                <Home size={14} />
+                <span className="text-[10px] font-black uppercase tracking-widest">Home</span>
+            </button>
 
             <div className="fixed bottom-10 left-0 w-full px-10 flex justify-between items-center z-50">
                 <button
