@@ -60,6 +60,7 @@ export async function POST(req: Request) {
         }
 
         // Duplicate Check (skip if regen requested)
+        // Match on prompt + userId + type so Quick and Deep produce separate entries
         if (!regen) {
             const existingCourse = await db
                 .select()
@@ -67,7 +68,8 @@ export async function POST(req: Request) {
                 .where(
                     and(
                         eq(Courses.prompt, prompt),
-                        eq(Courses.userId, userEmail)
+                        eq(Courses.userId, userEmail),
+                        eq(Courses.type, type || "quick")
                     )
                 );
 
@@ -77,7 +79,7 @@ export async function POST(req: Request) {
         }
 
         // AI Call — Google Gemini (100% free)
-        const slideCount = type === "long" ? 10 : 5;
+        const slideCount = type === "long" ? 12 : 5;
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({
             model: "gemini-3.6-flash",
@@ -89,6 +91,7 @@ The JSON must follow this exact structure:
 {"slides": [{"title": "string", "content": {"text": "string", "bulletPoints": ["string"]}}]}
 
 CRITICAL RULES:
+- Generate EXACTLY the number of slides requested — do NOT generate fewer
 - The "text" field MUST be 3-4 detailed sentences explaining the concept thoroughly
 - The "bulletPoints" array MUST contain exactly 5 key points, each being a full sentence (15-25 words each)
 - Every slide must teach something new and build on the previous one
@@ -99,9 +102,22 @@ CRITICAL RULES:
         });
 
         const result = await model.generateContent(
-            `Create ${slideCount} detailed educational slides about: ${prompt}
+            `Create exactly ${slideCount} detailed educational slides about: ${prompt}
 
-Remember: Each slide needs a descriptive title, a detailed text explanation (3-4 sentences), and 5 bullet points (15-25 words each). Make the content rich, educational, and easy to understand.`
+IMPORTANT: You MUST generate EXACTLY ${slideCount} slides — not fewer, not more.
+
+For ${type === "long" ? "Deep mode (12 slides)" : "Quick mode (5 slides)"}:
+${type === "long"
+    ? "- Cover the topic comprehensively with 12 distinct subtopics"
+    : "- Cover the topic concisely with 5 key subtopics"
+}
+
+Each slide MUST have:
+1. A descriptive title
+2. A detailed text explanation (3-4 sentences)
+3. 5 bullet points (15-25 words each)
+
+Make the content rich, educational, and easy to understand. Output ONLY valid JSON, no markdown.`
         );
 
         const responseText = result.response.text();
@@ -124,6 +140,45 @@ Remember: Each slide needs a descriptive title, a detailed text explanation (3-4
             );
         }
 
+        // Normalize slides to ensure consistent structure regardless of Gemini's output format
+        const rawSlides = parsedData.slides || parsedData;
+        const normalizedSlides = (Array.isArray(rawSlides) ? rawSlides : []).map((slide: any) => {
+            let text = "";
+            let bulletPoints: string[] = [];
+
+            // Handle nested content object: { content: { text: "...", bulletPoints: [...] } }
+            if (slide.content && typeof slide.content === "object" && !Array.isArray(slide.content)) {
+                text = slide.content.text || slide.content.description || "";
+                bulletPoints = Array.isArray(slide.content.bulletPoints) ? slide.content.bulletPoints
+                    : Array.isArray(slide.content.points) ? slide.content.points
+                    : Array.isArray(slide.content.bullets) ? slide.content.bullets
+                    : [];
+            }
+            // Handle flat string content: { content: "..." }
+            else if (typeof slide.content === "string") {
+                text = slide.content;
+            }
+
+            // Fallback: text/bullets directly on the slide object
+            if (!text) {
+                text = slide.text || slide.description || slide.body || "";
+            }
+            if (bulletPoints.length === 0) {
+                bulletPoints = Array.isArray(slide.bulletPoints) ? slide.bulletPoints
+                    : Array.isArray(slide.points) ? slide.points
+                    : Array.isArray(slide.bullets) ? slide.bullets
+                    : [];
+            }
+
+            return {
+                title: slide.title || slide.heading || "Untitled",
+                content: {
+                    text: text,
+                    bulletPoints: bulletPoints,
+                },
+            };
+        });
+
         const insertResult = await db
             .insert(Courses)
             .values({
@@ -131,7 +186,7 @@ Remember: Each slide needs a descriptive title, a detailed text explanation (3-4
                 userId: userEmail,
                 prompt: prompt,
                 type: type || "quick",
-                content: parsedData.slides,
+                content: normalizedSlides,
             })
             .returning();
 

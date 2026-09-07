@@ -32,10 +32,14 @@ function GenerateContent() {
                 const data = await response.json();
 
                 const content = data.content || data.slides || data;
+                let rawSlides: any[] = [];
                 if (Array.isArray(content)) {
-                    setSlides(content);
+                    rawSlides = content;
                 } else if (data.content && Array.isArray(data.content)) {
-                    setSlides(data.content);
+                    rawSlides = data.content;
+                }
+                if (rawSlides.length > 0) {
+                    setSlides(normalizeSlides(rawSlides));
                 }
 
                 setLoading(false);
@@ -70,25 +74,70 @@ function GenerateContent() {
 
     const router = useRouter();
 
-    const renderContent = (content: any) => {
-        if (!content) return "";
-        if (typeof content === 'string') return content;
-        if (typeof content === 'object') {
-            return content.text || content.description || content.content || JSON.stringify(content);
-        }
-        return "No content available";
+    // Normalize slide data to handle different Gemini response formats
+    const normalizeSlides = (rawSlides: any[]): any[] => {
+        return rawSlides.map((slide: any) => {
+            let text = "";
+            let bulletPoints: string[] = [];
+
+            // Case 1: content is an object with nested text/bulletPoints (expected format)
+            if (slide.content && typeof slide.content === "object" && !Array.isArray(slide.content)) {
+                text = slide.content.text || slide.content.description || "";
+                bulletPoints = Array.isArray(slide.content.bulletPoints) ? slide.content.bulletPoints
+                    : Array.isArray(slide.content.points) ? slide.content.points
+                    : Array.isArray(slide.content.bullets) ? slide.content.bullets
+                    : [];
+            }
+            // Case 2: content is a string (flat format)
+            else if (typeof slide.content === "string") {
+                text = slide.content;
+            }
+            // Case 3: text/description/bullets are directly on the slide object (flat Gemini response)
+            if (!text) {
+                text = slide.text || slide.description || slide.body || "";
+            }
+            if (bulletPoints.length === 0) {
+                bulletPoints = Array.isArray(slide.bulletPoints) ? slide.bulletPoints
+                    : Array.isArray(slide.points) ? slide.points
+                    : Array.isArray(slide.bullets) ? slide.bullets
+                    : [];
+            }
+
+            return {
+                ...slide,
+                title: slide.title || slide.heading || "Untitled",
+                _text: text,
+                _bullets: bulletPoints,
+            };
+        });
     };
 
-    const getBulletPoints = (content: any): string[] => {
-        if (!content) return [];
-        if (typeof content === 'object' && Array.isArray(content.bulletPoints)) {
-            return content.bulletPoints;
+    const renderContent = (slide: any) => {
+        if (!slide) return "";
+        // Prefer normalized _text field
+        if (slide._text) return slide._text;
+        // Fallback: try to extract from content field
+        const content = slide.content;
+        if (!content) return "";
+        if (typeof content === "string") return content;
+        if (typeof content === "object" && !Array.isArray(content)) {
+            return content.text || content.description || content.body || "";
         }
-        if (typeof content === 'object' && Array.isArray(content.points)) {
-            return content.points;
-        }
-        if (typeof content === 'object' && Array.isArray(content.bullets)) {
-            return content.bullets;
+        return "";
+    };
+
+    const getBulletPoints = (slide: any): string[] => {
+        if (!slide) return [];
+        // Prefer normalized _bullets field
+        if (slide._bullets && slide._bullets.length > 0) return slide._bullets;
+        // Fallback: try to extract from content field
+        const content = slide.content;
+        if (!content || typeof content === "string") return [];
+        if (typeof content === "object" && !Array.isArray(content)) {
+            return Array.isArray(content.bulletPoints) ? content.bulletPoints
+                : Array.isArray(content.points) ? content.points
+                : Array.isArray(content.bullets) ? content.bullets
+                : [];
         }
         return [];
     };
@@ -155,11 +204,11 @@ function GenerateContent() {
                     </h2>
 
                     <div className="text-lg md:text-2xl text-zinc-400 font-medium max-w-4xl leading-relaxed">
-                        <p className="mb-6">{renderContent(slides[currentSlide]?.content)}</p>
+                        <p className="mb-6">{renderContent(slides[currentSlide])}</p>
 
-                        {getBulletPoints(slides[currentSlide]?.content).length > 0 && (
+                        {getBulletPoints(slides[currentSlide]).length > 0 && (
                             <ul className="mt-6 space-y-3 text-left inline-block">
-                                {getBulletPoints(slides[currentSlide]?.content).map((point: string, idx: number) => (
+                                {getBulletPoints(slides[currentSlide]).map((point: string, idx: number) => (
                                     <li key={idx} className="flex items-start gap-3 text-zinc-300 text-lg md:text-xl">
                                         <span className="text-blue-500 mt-1">•</span> {point}
                                     </li>
